@@ -290,62 +290,72 @@ _AMOUNT_MAP = [
 ]
 
 # words that carry no numeric value — skip them during parsing
-_IGNORE_WORDS = {
-    'ريال', 'ريالا', 'ريالاً', 'رياله', 'ريالات',
-    'هللة', 'هلله', 'هللات', 'هلل',
-    'فقط', 'لاغير', 'لا', 'غير', 'وقدره', 'وقدرة', 'قدره',
-    'سعودي', 'سعودية', 'و', 'ا', 'ة', 'ه', 'ن', 'ي',
-}
+def _normalize_arabic(s):
+    """Normalize Arabic: unify alef variants (آأإ → ا) and taa marbuta (ة → ه)."""
+    for c in 'آأإ':
+        s = s.replace(c, 'ا')
+    s = s.replace('ة', 'ه')
+    return s
+
+
+# Amount map normalized + sorted longest-first for greedy substring scan
+_NORM_AMOUNT_MAP = sorted(
+    [(_normalize_arabic(a), v) for a, v in _AMOUNT_MAP],
+    key=lambda x: -len(x[0])
+)
+
+# Noise substrings to strip before scanning (normalized, longer entries first)
+_NOISE_SUBSTRINGS = [
+    _normalize_arabic(s) for s in [
+        'وقدرة', 'وقدره', 'قدره', 'سعودية', 'سعودي', 'فقط',
+        'لاغير', 'ريالاً', 'ريالا', 'ريالات', 'رياله', 'ريال',
+        'هللات', 'هللة', 'هلله', 'هلل',
+    ]
+]
 
 
 def legal_text_to_digits(token_list):
-    # join sub-word tokens first, then match against the amount map
-    text = ''.join(token_list)
-    for noise in ('فقط', 'لاغير', 'وقدره', 'وقدرة', 'سعودي', 'سعودية'):
+    """Convert a list of Arabic sub-word tokens to an integer amount.
+
+    Joins the sub-word fragments (no spaces), normalizes Arabic script variants,
+    strips noise words, then performs a greedy longest-match scan against the
+    amount vocabulary.  Returns None if no numeric value can be extracted.
+    """
+    # 1. Join all sub-word fragments and normalize script variants
+    text = _normalize_arabic(''.join(token_list))
+
+    # 2. Strip noise substrings (replace with space so adjacent words don't merge)
+    for noise in _NOISE_SUBSTRINGS:
         text = text.replace(noise, ' ')
     text = re.sub(r'\s+', ' ', text).strip()
 
+    # 3. Greedy longest-match character scan
     total = 0
     current = 0
-    words = text.split()
     i = 0
+    n = len(text)
 
-    while i < len(words):
-        word = words[i]
-
-        if word in _IGNORE_WORDS:
+    while i < n:
+        if text[i] in ' \t':
             i += 1
             continue
 
         matched = False
-        # try two-word phrases first (e.g. "أحد عشر" = 11)
-        if i + 1 < len(words):
-            two = word + ' ' + words[i + 1]
-            for arabic, val in _AMOUNT_MAP:
-                if two == arabic:
-                    if val == 1000:
-                        current = max(current, 1) * 1000
-                    else:
-                        current += val
-                    i += 2
-                    matched = True
-                    break
+        for arabic_norm, val in _NORM_AMOUNT_MAP:
+            L = len(arabic_norm)
+            if text[i:i + L] == arabic_norm:
+                if val == 1000:
+                    current = max(current, 1) * 1000
+                    total += current
+                    current = 0
+                else:
+                    current += val
+                i += L
+                matched = True
+                break
 
         if not matched:
-            for arabic, val in _AMOUNT_MAP:
-                if word == arabic:
-                    if val == 1000:
-                        current = max(current, 1) * 1000
-                        total += current
-                        current = 0
-                    else:
-                        current += val
-                    i += 1
-                    matched = True
-                    break
-
-        if not matched:
-            i += 1  # unknown token, skip
+            i += 1  # skip unrecognised character
 
     total += current
     return total if total > 0 else None
