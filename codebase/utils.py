@@ -1,6 +1,8 @@
-# ICS472 – Natural Language Processing
-# Arabic Bank Check Processing
-# Mohammed Al Sheqaih · Abdulrhman Ammar
+# Arabic Bank Check Amount Extraction and Verification
+# Shared utilities: paths, label parsing, vocabularies, metrics,
+# and the rule-based Arabic-amount to integer converter.
+#
+# Mohammed Al Sheqaih, Abdulrhman Ammar
 
 import os
 import ast
