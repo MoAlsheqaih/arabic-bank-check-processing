@@ -67,7 +67,7 @@ The dataset itself is **private and licensed and is not in this repository**. Co
 - `11` in test — the same separator, encoded differently
 - `'/'` in train — also a fraction separator
 
-All three separators are unified to `<SEP>` in `utils._normalise_ca_token`. Courtesy vocabulary: 13 tokens.
+`utils._normalise_ca_token` maps `11` and `'/'` onto `<SEP>` but leaves `'.'` as its own token, so the 13-token vocabulary carries **two distinct symbols for the same concept**. This costs real accuracy: in the courtesy recognition notebook the model sometimes emits `.` where the reference holds `<SEP>`, and a semantically correct read is scored as an error. Collapsing the two before scoring would be the fix.
 
 **Legal labels are sub-word fragments, not words.** Each line is `Lac#####.tif ['subword', 'tokens', ...]` where words are split into pieces — ريال arrives as `['ر', 'يا', 'ل']`. The files also contain invisible RTL/LTR Unicode control characters that must be stripped before parsing; `utils.parse_legal_amounts` handles this. If you `print()` raw lines from `LegalAmounts.txt` they may render backwards in a terminal. That is normal.
 
