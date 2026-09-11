@@ -10,6 +10,8 @@ Authors: Mohammed Al Sheqaih, Abdulrhman Ammar
 Supervisor: Dr. Irfan Ahmad
 Natural Language Processing, King Fahd University of Petroleum and Minerals
 
+The full technical write-up is in [`report.pdf`](report.pdf), 20 pages.
+
 ---
 
 ## The pipeline
